@@ -9,15 +9,7 @@ import {
 } from "@/components/ui/popover";
 import { useTheme } from "@/app/provider/theme-provider";
 import { cn } from "@/lib/utils";
-
-type Theme = {
-  name: string;
-  title: string;
-  cssVars: {
-    light: Record<string, string>;
-    dark: Record<string, string>;
-  };
-};
+import type { Theme } from "@/types/theme";
 
 export function ThemeSwitcher() {
   const { theme, setTheme, themes, mode, setMode, isMounted } = useTheme();
@@ -63,7 +55,7 @@ export function ThemeSwitcher() {
                   themeOption={t}
                   currentTheme={theme}
                   currentMode={mode}
-                  onSelect={() => setTheme(t.name as any)}
+                  onSelect={() => setTheme(t.name)}
                 />
               ))}
             </div>

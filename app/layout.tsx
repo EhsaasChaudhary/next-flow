@@ -45,7 +45,7 @@ export default function RootLayout({
                 {/* Logo Section */}
                 <div className="flex items-center gap-3 group cursor-pointer">
                   <span className="font-bold text-lg bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
-                    TweakCN Theme Template
+                    Next Flow
                   </span>
                 </div>
 

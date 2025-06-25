@@ -1,103 +1,242 @@
-import Image from "next/image";
+// app/page.tsx
+'use client';
 
-export default function Home() {
+import '@xyflow/react/dist/style.css';
+import React, { useCallback, useEffect, useMemo } from 'react';
+
+import {
+  ReactFlow,
+  useNodesState,
+  useEdgesState,
+  Background,
+  Controls,
+  MiniMap,
+  Edge,
+  Node,
+} from '@xyflow/react';
+
+// Import your data (assuming data.json is structured as provided previously)
+import initialJsonData from '@/lib/data.json'; // Adjust path if your data.json is elsewhere
+
+// Import your custom node component
+import { QuestionNode, QuestionNodeData } from '@/components/nodes/question-node';
+
+// Define your custom node types
+const nodeTypes = {
+  question: QuestionNode,
+};
+
+// --- Helper functions ---
+
+// Helper function to build child-to-multiple-parents map
+const buildChildToParentsMap = (nodes: Node<QuestionNodeData>[]): Map<string, string[]> => {
+  const childToParentsMap = new Map<string, string[]>();
+  nodes.forEach(node => {
+    if (node.data?.children) {
+      node.data.children.forEach(childId => {
+        if (!childToParentsMap.has(childId)) {
+          childToParentsMap.set(childId, []);
+        }
+        childToParentsMap.get(childId)!.push(node.id);
+      });
+    }
+  });
+  return childToParentsMap;
+};
+
+// Helper function to check if a node should be hidden because an ancestor is collapsed
+// REVISED: Using a more standard BFS traversal with visited set
+const isNodeHiddenByAncestor = (
+  nodeId: string,
+  nodes: Node<QuestionNodeData>[],
+  childToParentsMap: Map<string, string[]>
+): boolean => {
+  const nodesToCheck: string[] = []; // Queue for BFS
+  const visited = new Set<string>(); // Set to track visited nodes
+
+  // Start the BFS from the immediate parents of the given nodeId
+  const initialParents = childToParentsMap.get(nodeId);
+  if (initialParents) {
+    for (const parentId of initialParents) {
+      if (!visited.has(parentId)) { // Only add to queue and visited if not already visited
+        visited.add(parentId);
+        nodesToCheck.push(parentId);
+      }
+    }
+  }
+
+  while (nodesToCheck.length > 0) {
+    const currentParentId = nodesToCheck.shift()!; // Get the next node to check (BFS)
+
+    // Find the node object for the current parent ID
+    const parentNode = nodes.find(n => n.id === currentParentId);
+
+    // Check if this ancestor node is collapsed
+    if (parentNode?.data?.collapsed) {
+      return true; // Found a collapsed ancestor anywhere up the chain
+    }
+
+    // If not collapsed, add its parents (grandparents of the original node) to the queue
+    if (childToParentsMap.has(currentParentId)) {
+      const grandparents = childToParentsMap.get(currentParentId)!;
+      for (const grandparentId of grandparents) {
+        if (!visited.has(grandparentId)) { // Only add to queue and visited if not already visited
+          visited.add(grandparentId);
+          nodesToCheck.push(grandparentId);
+        }
+      }
+    }
+  }
+
+  // If the loop finishes, no collapsed ancestor was found among the loaded nodes
+  return false;
+};
+
+// Helper function to calculate the 'hidden' property for all nodes and edges
+// This function remains the same, applying the hiding logic from isNodeHiddenByAncestor
+const calculateVisibility = (
+  currentNodes: Node<QuestionNodeData>[],
+  currentEdges: Edge[],
+  childToParentsMap: Map<string, string[]>
+) => {
+  const hiddenNodeIds = new Set<string>();
+
+  currentNodes.forEach(node => {
+    if (isNodeHiddenByAncestor(node.id, currentNodes, childToParentsMap)) {
+      hiddenNodeIds.add(node.id);
+    }
+  });
+
+  const nextNodes = currentNodes.map(node => ({
+    ...node,
+    hidden: hiddenNodeIds.has(node.id),
+  }));
+
+  const nextEdges = currentEdges.map(edge => ({
+    ...edge,
+    hidden: hiddenNodeIds.has(edge.source) || hiddenNodeIds.has(edge.target),
+  }));
+
+  return { nextNodes, nextEdges };
+};
+// --- End Helper functions ---
+
+// REMOVED: const QUESTIONS_PER_PAGE = 10; // Define how many questions per page
+
+function App() {
+  // Ensure generic types match Node/Edge types from @xyflow/react
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node<QuestionNodeData>>([]);
+  const [edges, setEdges, onEdgesState] = useEdgesState<Edge>([]); // Renamed variable from onEdgesChange to onEdgesState for clarity
+
+  // REMOVED: State to manage pagination
+  // REMOVED: const [loadedQuestionsCount, setLoadedQuestionsCount] = useState(QUESTIONS_PER_PAGE);
+
+  // Using all data from the start to fully test hiding logic
+  const currentDataSlice = useMemo(() => {
+    return initialJsonData; // Load all initial data
+  }, []); // Empty dependency array ensures this runs only once on mount
+
+  // Effect to generate nodes and edges whenever the data slice changes (initially with all data)
+  useEffect(() => {
+    const currentNodes: Node<QuestionNodeData>[] = currentDataSlice.map(item => ({
+      id: item.id,
+      type: 'question',
+      data: {
+        ...item,
+        collapsed: false, // Nodes are initially not collapsed
+      },
+      position: item.position, // Assuming initial position is in your data
+      hidden: false, // Nodes are initially visible
+    }));
+
+    const currentEdges: Edge[] = [];
+    currentDataSlice.forEach(item => {
+      if (item.children) {
+        item.children.forEach(childId => {
+          // Only add edge if both source and target nodes are in the current slice (full data in this case)
+          const sourceNodeExists = currentNodes.find(node => node.id === item.id);
+          const targetNodeExists = currentNodes.find(node => node.id === childId);
+
+          if (sourceNodeExists && targetNodeExists) {
+            currentEdges.push({
+              id: `${item.id}-${childId}`,
+              source: item.id,
+              target: childId,
+              type: 'smoothstep', // Or 'default', 'straight', etc.
+              sourceHandle: 'bottom', // Adjust if using handles
+              targetHandle: 'top',   // Adjust if using handles
+              hidden: false, // Edges are initially visible
+            });
+          }
+        });
+      }
+    });
+
+    // Calculate initial visibility based on collapsed state (all are initially not collapsed)
+    const childToParentsMap = buildChildToParentsMap(currentNodes);
+    const { nextNodes, nextEdges } = calculateVisibility(currentNodes, currentEdges, childToParentsMap);
+
+    setNodes(nextNodes);
+    setEdges(nextEdges);
+
+  }, [currentDataSlice]); // Depend on the data slice
+
+  // --- Custom handlers for node actions ---
+
+  const handleToggleCollapse = useCallback((nodeId: string, isCollapsed: boolean) => {
+    setNodes(currentNodes => {
+      // Update the collapsed state for the clicked node
+      const nodesWithUpdatedCollapse = currentNodes.map(node =>
+        node.id === nodeId
+          ? { ...node, data: { ...node.data!, collapsed: isCollapsed } as QuestionNodeData }
+          : node
+      );
+
+      // Recalculate visibility for ALL loaded nodes and edges based on the new collapse state
+      // This is where the transitive hiding happens, using the revised isNodeHiddenByAncestor
+      const childToParentsMap = buildChildToParentsMap(nodesWithUpdatedCollapse);
+      const { nextNodes, nextEdges } = calculateVisibility(nodesWithUpdatedCollapse, edges, childToParentsMap);
+
+      // Update edges state directly here
+      setEdges(nextEdges);
+      return nextNodes; // Return the updated nodes state for setNodes
+    });
+  }, [edges, setEdges]); // Include edges and setEdges as dependencies
+
+  // Inject handlers into node data before passing to ReactFlow
+  const nodesWithHandlers: Node<QuestionNodeData>[] = useMemo(() => {
+    return nodes.map(node => ({
+      ...node,
+      data: {
+        ...node.data,
+        onToggleCollapse: handleToggleCollapse,
+      }
+    }));
+  }, [nodes, handleToggleCollapse]); // Depend on nodes and the handler
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="w-full h-full p-8 overflow-hidden">
+      <ReactFlow
+        nodes={nodesWithHandlers}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesState} // Use onEdgesState here
+        // onConnect={onConnect} // Add if you need edge creation
+        nodeTypes={nodeTypes}
+        fitView // Fit initial view
+        proOptions={{ hideAttribution: true }}
+        // ReactFlow will automatically fill its w-full h-full absolute parent
+      >
+        {/* IMPORTANT: Background, MiniMap, Controls go inside ReactFlow */}
+        <Background />
+        {/* Add style prop with high zIndex to ensure they are above the footer */}
+        <MiniMap style={{ zIndex: 20 }} />
+        {/* Add style prop with high zIndex to ensure they are above the footer */}
+        <Controls style={{ zIndex: 20 }} />
+      </ReactFlow>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
     </div>
   );
 }
+
+export default App;

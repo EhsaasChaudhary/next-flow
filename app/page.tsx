@@ -255,7 +255,7 @@ const buildUserGraph = (userId: string): { nodes: Node<QuestionNodeData>[], edge
 
     // 2. Load existing user data from local storage
     let loadedNodes: Node<QuestionNodeData>[] = [];
-    let loadedCollapsedStates = new Map<string, boolean>();
+    const loadedCollapsedStates = new Map<string, boolean>();
 
     try {
         const storedData = localStorage.getItem(getLocalStorageKey(userId));
@@ -427,7 +427,7 @@ function App() {
       } catch (error) {
          console.error("Failed to clear data from local storage for user", currentUser, error);
       }
-  }, [currentUser, setNodes, setEdges]); // Depend on currentUser, setNodes, setEdges
+  }, [currentUser, setNodes, setEdges]); // Added setNodes to dependencies
 
 
   // Render UI

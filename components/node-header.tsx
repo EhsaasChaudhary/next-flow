@@ -1,10 +1,12 @@
-// node-header.tsx
+// components/node-header.tsx
 import { forwardRef, useCallback, HTMLAttributes, ReactNode } from "react";
 import { useNodeId, useReactFlow } from "@xyflow/react";
-import { EllipsisVertical, Trash } from "lucide-react";
+import { EllipsisVertical, Trash, Puzzle } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { Slot } from "@radix-ui/react-slot";
+// NodeHeaderTitle, NodeHeaderIcon components are likely not used directly in the new structure
+// import { Slot } from "@radix-ui/react-slot";
+
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -12,80 +14,52 @@ import {
   DropdownMenuContent,
 } from "@/components/ui/dropdown-menu";
 
-/* NODE HEADER -------------------------------------------------------------- */
+/* NODE TITLE CORNER -------------------------------------------------------- */
 
-export type NodeHeaderProps = HTMLAttributes<HTMLElement>;
-
-/**
- * A container for a consistent header layout intended to be used inside the
- * `<BaseNode />` component.
- */
-export const NodeHeader = forwardRef<HTMLElement, NodeHeaderProps>(
-  ({ className, ...props }, ref) => {
-    return (
-      <header
-        ref={ref}
-        {...props}
-        className={cn(
-          "flex items-center justify-between gap-2",
-          // Remove or modify these classes if you modify the padding in the
-          // `<BaseNode />` component.
-          className,
-        )}
-      />
-    );
-  },
-);
-
-NodeHeader.displayName = "NodeHeader";
-
-/* NODE HEADER TITLE -------------------------------------------------------- */
-
-export type NodeHeaderTitleProps = HTMLAttributes<HTMLHeadingElement> & {
-  asChild?: boolean;
+export type NodeTitleCornerProps = HTMLAttributes<HTMLDivElement> & {
+    icon?: ReactNode; // Optional icon slot
 };
 
 /**
- * The title text for the node. To maintain a native application feel, the title
- * text is not selectable.
+ * A component that creates the styled corner area for the node title.
+ * Positioned absolutely at the top-left of the node by the parent.
  */
-export const NodeHeaderTitle = forwardRef<
-  HTMLHeadingElement,
-  NodeHeaderTitleProps
->(({ className, asChild, ...props }, ref) => {
-  const Comp = asChild ? Slot : "h3";
-
+export const NodeTitleCorner = forwardRef<
+  HTMLDivElement,
+  NodeTitleCornerProps
+>(({ className, icon, children, ...props }, ref) => {
   return (
-    <Comp
+    <div
       ref={ref}
       {...props}
-      className={cn(className, "user-select-none z-1 flex-1 font-semibold")}
-    />
+      className={cn(
+        "flex items-center gap-1 bg-primary text-primary-foreground pl-3 pr-2 py-1.5 text-sm", // Padding, text size
+        "rounded-md", // Apply rounding to all corners
+        "absolute top-0 left-0 z-20 user-select-none", // Position absolutely, high z-index
+        // Offset slightly to align with border edge and make it pop
+        "transform -translate-x-[1px] -translate-y-[1px]",
+        "shadow-sm border border-primary-foreground/20", // Example border/shadow for definition
+        className
+      )}
+    >
+      {icon} {/* Optional icon */}
+      <span className="font-semibold leading-none">{children}</span> {/* Title text, added leading-none */}
+    </div>
   );
 });
 
-NodeHeaderTitle.displayName = "NodeHeaderTitle";
+NodeTitleCorner.displayName = "NodeTitleCorner";
 
-/* NODE HEADER ICON --------------------------------------------------------- */
 
-export type NodeHeaderIconProps = HTMLAttributes<HTMLSpanElement>;
-
-export const NodeHeaderIcon = forwardRef<HTMLSpanElement, NodeHeaderIconProps>(
-  ({ className, ...props }, ref) => {
-    return (
-      <span ref={ref} {...props} className={cn(className, "[&>*]:size-5")} />
-    );
-  },
-);
-
-NodeHeaderIcon.displayName = "NodeHeaderIcon";
+/* NODE HEADER (REMOVED) ---------------------------------------------------- */
+// The old NodeHeader component is no longer used.
 
 /* NODE HEADER ACTIONS ------------------------------------------------------ */
-
+// Keep as a container for actions, its position is managed by the parent (QuestionNode)
 export type NodeHeaderActionsProps = HTMLAttributes<HTMLDivElement>;
 
 /**
- * A container for right-aligned action buttons in the node header.
+ * A container for right-aligned action buttons. Positioned by the parent.
  */
 export const NodeHeaderActions = forwardRef<
   HTMLDivElement,
@@ -95,31 +69,19 @@ export const NodeHeaderActions = forwardRef<
     <div
       ref={ref}
       {...props}
-      className={cn(
-        "ml-auto flex items-center gap-1 justify-self-end",
-        className,
-      )}
+      // Removed z-index here, apply in parent if needed based on exact layout
+      className={cn("flex items-center gap-1", className)}
     />
   );
 });
-
 NodeHeaderActions.displayName = "NodeHeaderActions";
 
 /* NODE HEADER ACTION ------------------------------------------------------- */
 
-// Fix: Use React.ComponentProps<typeof Button> to get the props type
 export type NodeHeaderActionProps = React.ComponentProps<typeof Button> & {
   label: string;
 };
 
-/**
- * A thin wrapper around the `<Button />` component with a fixed sized suitable
- * for icons.
- *
- * Because the `<NodeHeaderAction />` component is intended to render icons, it's
- * important to provide a meaningful and accessible `label` prop that describes
- * the action.
- */
 export const NodeHeaderAction = forwardRef<
   HTMLButtonElement,
   NodeHeaderActionProps
@@ -135,10 +97,9 @@ export const NodeHeaderAction = forwardRef<
     />
   );
 });
-
 NodeHeaderAction.displayName = "NodeHeaderAction";
 
-//
+/* NODE HEADER MENU ACTION --------------------------------------- */
 
 export type NodeHeaderMenuActionProps = Omit<
   NodeHeaderActionProps,
@@ -147,16 +108,6 @@ export type NodeHeaderMenuActionProps = Omit<
   trigger?: ReactNode;
 };
 
-/**
- * Renders a header action that opens a dropdown menu when clicked. The dropdown
- * trigger is a button with an ellipsis icon. The trigger's content can be changed
- * by using the `trigger` prop.
- *
- * Any children passed to the `<NodeHeaderMenuAction />` component will be rendered
- * inside the dropdown menu. You can read the docs for the shadcn dropdown menu
- * here: https://ui.shadcn.com/docs/components/dropdown-menu
- *
- */
 export const NodeHeaderMenuAction = forwardRef<
   HTMLButtonElement,
   NodeHeaderMenuActionProps

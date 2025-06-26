@@ -1,97 +1,111 @@
 // components/nodes/question-node.tsx
 import React, { useCallback } from 'react';
 import { type Node, type NodeProps, Position, Handle } from '@xyflow/react';
-import { ChevronDown, ChevronRight } from 'lucide-react'; // Removed CircleCheck, Circle
+import { ChevronDown, ChevronRight, Puzzle } from 'lucide-react';
 
 import { BaseNode } from '@/components/base-node';
 import {
-  NodeHeader,
-  NodeHeaderTitle,
-  NodeHeaderActions,
-  NodeHeaderAction,
+  NodeTitleCorner, // Import the updated component
+  NodeHeaderAction, // Import action button
+  NodeHeaderDeleteAction // Keep or remove if you want a delete button
 } from '@/components/node-header';
+import {
+    TooltipNode,
+    TooltipContent,
+    // TooltipTrigger, // Not needed as BaseNode triggers
+} from '@/components/tooltip-node';
 import { cn } from '@/lib/utils';
 
-// Define the shape of the data for our question node (Removed 'completed', 'onToggleComplete')
+// Define the shape of the data for our question node (same as before)
 export type QuestionNodeData = {
   text: string;
-  children?: string[]; // Store child IDs for collapse logic
-  collapsed?: boolean; // State for collapse (controlled by parent)
-  // This handler is passed down from the parent App component
+  shortTitle: string;
+  children?: string[];
+  collapsed?: boolean;
   onToggleCollapse?: (nodeId: string, isCollapsed: boolean) => void;
-  // Removed: onToggleComplete?: (nodeId: string, isCompleted: boolean) => void;
+  difficulty?: string;
+  topic?: string;
+  description?: string;
+  skills_tested?: string[];
 };
 
 export type QuestionNode = Node<QuestionNodeData>;
 
-export function QuestionNode({ id, data }: NodeProps<QuestionNode>) {
-  // Destructure data, providing default values for optional properties (Removed 'completed', 'onToggleComplete')
+export function QuestionNode({ id, data, selected }: NodeProps<QuestionNode>) {
   const {
     text,
-    collapsed = false, // Default to false if not provided
+    shortTitle,
+    collapsed = false,
     children,
     onToggleCollapse,
   } = data;
 
-  // Handler for the collapse button click
-  // This function is correct and calls the parent handler
   const handleToggleCollapse = useCallback(() => {
-    // Call the parent's handler if it exists, passing the current node's ID and the new collapsed state
     if (onToggleCollapse) {
       onToggleCollapse(id, !collapsed);
     }
-  }, [id, collapsed, onToggleCollapse]); // Dependencies: id, collapsed state, and the parent handler
+  }, [id, collapsed, onToggleCollapse]);
 
-   // Removed: handleToggleComplete function
-
-
-  // Determine if the collapse button should be shown (only if node has children defined in data)
-  const showCollapseButton = children && children.length > 0;
+  const canHaveChildren = children && children.length > 0;
+  const showCollapseButton = canHaveChildren;
+  const showSourceHandle = canHaveChildren && !collapsed;
 
   return (
-    // Removed conditional border styling - use default border
-    <BaseNode className={cn("w-64")}>
-      {/* Target handle at the top for incoming connections */}
-      {/* Use custom variables for handle styling - Adjusted to a neutral color */}
+    <TooltipNode selected={selected}>
+      {/* Target handle at the top */}
       <Handle
         type="target"
         position={Position.Top}
         id="top"
-        className="w-3 h-3 rounded-full border"
-        style={{ backgroundColor: 'var(--color-muted-foreground)', borderColor: 'var(--color-background)' }} // Use inline style with CSS variables
+        className="w-3 h-3 rounded-full border z-40" // Higher z-index than corner/actions
+        style={{ backgroundColor: 'var(--color-muted-foreground)', borderColor: 'var(--color-background)' }}
       />
 
-      <NodeHeader >
-        <NodeHeaderTitle>{text}</NodeHeaderTitle>
-        <NodeHeaderActions>
+      {/* BaseNode as the main card container */}
+      <BaseNode className={cn("w-64 h-24")}> {/* Set node dimensions */}
 
-          {/* Collapse Toggle Button - Only show if node has children defined in data */}
-          {showCollapseButton && (
-            <NodeHeaderAction
-              label={collapsed ? "Expand children" : "Collapse children"} // Accessibility label
-              onClick={handleToggleCollapse} // Click handler
-              title={collapsed ? "Expand children" : "Collapse children"} // Tooltip title
-            >
-              {collapsed ? <ChevronRight className="size-5"/> : <ChevronDown className="size-5"/>}
-            </NodeHeaderAction>
-          )}
-        </NodeHeaderActions>
-      </NodeHeader>
+        {/* Absolutely positioned corner title */}
+        {/* It positions itself using absolute top/left */}
+        <NodeTitleCorner icon={<Puzzle className="size-4" />}>
+            {shortTitle}
+        </NodeTitleCorner>
 
-      {/* No extra content area needed for this simple node */}
+        {/* Absolutely positioned container for actions at top-right */}
+        <div className="absolute top-0 right-0 flex items-center gap-1 p-1 z-30"> {/* Adjust padding/gap/z-index */}
+           {/* Collapse Toggle Button */}
+           {showCollapseButton && (
+             <NodeHeaderAction
+               label={collapsed ? "Expand children" : "Collapse children"}
+               onClick={handleToggleCollapse}
+               title={collapsed ? "Expand children" : "Collapse children"}
+             >
+               {collapsed ? <ChevronRight className="size-5"/> : <ChevronDown className="size-5"/>}
+             </NodeHeaderAction>
+           )}
+           {/* Optional: Delete action */}
+           <NodeHeaderDeleteAction />
+        </div>
 
-      {/* Source handle at the bottom for outgoing connections */}
-       {/* Render the handle if the node can be a source (has children defined in data) */}
-       {showCollapseButton && (
-           // Use custom variables for handle styling - Adjusted to a neutral color
+      </BaseNode>
+
+      {/* Source handle at the bottom */}
+       {showSourceHandle && (
            <Handle
               type="source"
               position={Position.Bottom}
               id="bottom"
-              className="w-3 h-3 rounded-full border"
-              style={{ backgroundColor: 'var(--color-muted-foreground)', borderColor: 'var(--color-background)' }} // Use inline style with CSS variables
+              className="w-3 h-3 rounded-full border z-40" // Higher z-index
+              style={{ backgroundColor: 'var(--color-muted-foreground)', borderColor: 'var(--color-background)' }}
             />
        )}
-    </BaseNode>
+
+       {/* Tooltip Content - Only show text */}
+        <TooltipContent position={Position.Right}>
+             <div className="text-sm p-1 max-w-xs">
+                 <p>{text}</p> 
+             </div>
+        </TooltipContent>
+
+    </TooltipNode>
   );
 }

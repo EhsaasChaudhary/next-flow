@@ -1,41 +1,27 @@
+// components/edges/data-edge.tsx
 import {
   BaseEdge,
   Edge,
-  EdgeLabelRenderer,
   EdgeProps,
   getBezierPath,
   getSmoothStepPath,
   getStraightPath,
   Node,
   Position,
-  useStore,
 } from "@xyflow/react";
-import { useMemo } from "react";
 
-export type DataEdge<T extends Node = Node> = Edge<{
-  /**
-   * The key to lookup in the source node's `data` object. For additional safety,
-   * you can parameterize the `DataEdge` over the type of one of your nodes to
-   * constrain the possible values of this key.
-   *
-   * If no key is provided this edge behaves identically to React Flow's default
-   * edge component.
-   */
+export type DataEdgeData<T extends Node = Node> = {
   key?: keyof T["data"];
-  /**
-   * Which of React Flow's path algorithms to use. Each value corresponds to one
-   * of React Flow's built-in edge types.
-   *
-   * If not provided, this defaults to `"bezier"`.
-   */
+
   path?: "bezier" | "smoothstep" | "step" | "straight";
-}>;
+};
+
+export type DataEdgeType = Edge<DataEdgeData>;
 
 export function DataEdge({
   data = { path: "bezier" },
   id,
   markerEnd,
-  source,
   sourcePosition,
   sourceX,
   sourceY,
@@ -43,9 +29,8 @@ export function DataEdge({
   targetPosition,
   targetX,
   targetY,
-}: EdgeProps<DataEdge>) {
-  const nodeData = useStore((state) => state.nodeLookup.get(source)?.data);
-  const [edgePath, labelX, labelY] = getPath({
+}: EdgeProps<DataEdgeType>) {
+  const [edgePath] = getPath({
     type: data.path ?? "bezier",
     sourceX,
     sourceY,
@@ -55,47 +40,13 @@ export function DataEdge({
     targetPosition,
   });
 
-  const label = useMemo(() => {
-    if (data.key && nodeData) {
-      const value = nodeData[data.key];
-
-      switch (typeof value) {
-        case "string":
-        case "number":
-          return value;
-
-        case "object":
-          return JSON.stringify(value);
-
-        default:
-          return "";
-      }
-    }
-  }, [data, nodeData]);
-
-  const transform = `translate(${labelX}px,${labelY}px) translate(-50%, -50%)`;
-
   return (
     <>
       <BaseEdge id={id} path={edgePath} markerEnd={markerEnd} style={style} />
-      {data.key && (
-        <EdgeLabelRenderer>
-          <div
-            className="absolute rounded border bg-background px-1 text-foreground"
-            style={{ transform }}
-          >
-            <pre className="text-xs">{label}</pre>
-          </div>
-        </EdgeLabelRenderer>
-      )}
     </>
   );
 }
 
-/**
- * Chooses which of React Flow's edge path algorithms to use based on the provided
- * `type`.
- */
 function getPath({
   type,
   sourceX,
@@ -114,16 +65,6 @@ function getPath({
   targetPosition: Position;
 }) {
   switch (type) {
-    case "bezier":
-      return getBezierPath({
-        sourceX,
-        sourceY,
-        targetX,
-        targetY,
-        sourcePosition,
-        targetPosition,
-      });
-
     case "smoothstep":
       return getSmoothStepPath({
         sourceX,
@@ -133,7 +74,6 @@ function getPath({
         sourcePosition,
         targetPosition,
       });
-
     case "step":
       return getSmoothStepPath({
         sourceX,
@@ -144,13 +84,23 @@ function getPath({
         targetPosition,
         borderRadius: 0,
       });
-
     case "straight":
-      return getStraightPath({
+      const [straightPath] = getStraightPath({
         sourceX,
         sourceY,
         targetX,
         targetY,
+      });
+      return [straightPath, 0, 0] as [string, number, number];
+    case "bezier":
+    default:
+      return getBezierPath({
+        sourceX,
+        sourceY,
+        targetX,
+        targetY,
+        sourcePosition,
+        targetPosition,
       });
   }
 }

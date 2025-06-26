@@ -1,7 +1,7 @@
 // components/node-header.tsx
 import { forwardRef, useCallback, HTMLAttributes, ReactNode } from "react";
 import { useNodeId, useReactFlow } from "@xyflow/react";
-import { EllipsisVertical, Trash, Puzzle } from "lucide-react";
+import { EllipsisVertical, Trash } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 // NodeHeaderTitle, NodeHeaderIcon components are likely not used directly in the new structure

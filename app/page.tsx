@@ -91,9 +91,18 @@ const demoUserRelationships: { [userId: string]: { [parentId: string]: string[] 
   }
 };
 
+// Add this interface before the commonQuestionsMap
+interface CommonQuestionData {
+  id: string;
+  position: XYPosition;
+  text: string;
+  shortTitle: string;
+  [key: string]: unknown; // For other properties
+}
+
 // Map common question data for easy lookup
 const commonQuestionsMap = new Map(
-    (commonQuestionsData as { id: string; position: XYPosition; [key: string]: any }[])
+    (commonQuestionsData as CommonQuestionData[])
     .map(q => [q.id, q])
 );
 

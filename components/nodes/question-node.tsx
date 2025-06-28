@@ -1,22 +1,21 @@
-// components/nodes/question-node.tsx
 import React, { useCallback } from 'react';
 import { type Node, type NodeProps, Position, Handle } from '@xyflow/react';
 import { ChevronDown, ChevronRight, Puzzle } from 'lucide-react';
 
 import { BaseNode } from '@/components/base-node';
+import { Badge } from '@/components/ui/badge'; // <-- 1. Import the Badge component
 import {
-  NodeTitleCorner, // Import the updated component
-  NodeHeaderAction, // Import action button
-  NodeHeaderDeleteAction // Keep or remove if you want a delete button
+  NodeTitleCorner,
+  NodeHeaderAction,
+  NodeHeaderDeleteAction
 } from '@/components/node-header';
 import {
     TooltipNode,
     TooltipContent,
-    // TooltipTrigger, // Not needed as BaseNode triggers
 } from '@/components/tooltip-node';
 import { cn } from '@/lib/utils';
 
-// Define the shape of the data for our question node (same as before)
+// Data shape is the same, no changes needed here
 export type QuestionNodeData = {
   text: string;
   shortTitle: string;
@@ -35,6 +34,10 @@ export function QuestionNode({ id, data, selected }: NodeProps<QuestionNode>) {
   const {
     text,
     shortTitle,
+    difficulty,
+    topic,
+    description,
+    skills_tested,
     collapsed = false,
     children,
     onToggleCollapse,
@@ -50,29 +53,24 @@ export function QuestionNode({ id, data, selected }: NodeProps<QuestionNode>) {
   const showCollapseButton = canHaveChildren;
   const showSourceHandle = canHaveChildren && !collapsed;
 
+  const hasTooltipContent = !!(description || difficulty || topic || (skills_tested && skills_tested.length > 0));
+
   return (
     <TooltipNode selected={selected}>
-      {/* Target handle at the top */}
       <Handle
         type="target"
         position={Position.Top}
         id="top"
-        className="w-3 h-3 rounded-full border z-40" // Higher z-index than corner/actions
+        className="w-3 h-3 rounded-full border z-40"
         style={{ backgroundColor: 'var(--color-muted-foreground)', borderColor: 'var(--color-background)' }}
       />
 
-      {/* BaseNode as the main card container */}
-      <BaseNode className={cn("w-64 h-24")}> {/* Set node dimensions */}
-
-        {/* Absolutely positioned corner title */}
-        {/* It positions itself using absolute top/left */}
+      <BaseNode className={cn("w-64 min-h-24")}>
         <NodeTitleCorner icon={<Puzzle className="size-4" />}>
             {shortTitle}
         </NodeTitleCorner>
 
-        {/* Absolutely positioned container for actions at top-right */}
-        <div className="absolute top-0 right-0 flex items-center gap-1 p-1 z-30"> {/* Adjust padding/gap/z-index */}
-           {/* Collapse Toggle Button */}
+        <div className="absolute top-0 right-0 flex items-center gap-1 p-1 z-30">
            {showCollapseButton && (
              <NodeHeaderAction
                label={collapsed ? "Expand children" : "Collapse children"}
@@ -82,30 +80,49 @@ export function QuestionNode({ id, data, selected }: NodeProps<QuestionNode>) {
                {collapsed ? <ChevronRight className="size-5"/> : <ChevronDown className="size-5"/>}
              </NodeHeaderAction>
            )}
-           {/* Optional: Delete action */}
            <NodeHeaderDeleteAction />
         </div>
-
+        
+        <div className="flex h-full items-center justify-center p-4 pt-10 text-left">
+            <p className="text-sm">{text}</p>
+        </div>
       </BaseNode>
 
-      {/* Source handle at the bottom */}
        {showSourceHandle && (
            <Handle
               type="source"
               position={Position.Bottom}
               id="bottom"
-              className="w-3 h-3 rounded-full border z-40" // Higher z-index
+              className="w-3 h-3 rounded-full border z-40"
               style={{ backgroundColor: 'var(--color-muted-foreground)', borderColor: 'var(--color-background)' }}
             />
        )}
 
-       {/* Tooltip Content - Only show text */}
-        <TooltipContent position={Position.Right}>
-             <div className="text-sm p-1 max-w-xs">
-                 <p>{text}</p> 
-             </div>
-        </TooltipContent>
-
+       {/* Tooltip Content - Updated to use Badges */}
+        {hasTooltipContent && (
+            <TooltipContent position={Position.Right}>
+                <div className="space-y-3 p-2 text-sm max-w-xs"> {/* Increased space-y for clarity */}
+                    {description && <p className="text-muted-foreground italic">{description}</p>}
+                    <div className="space-y-1">
+                        {topic && <p><strong>Topic:</strong> {topic}</p>}
+                        {difficulty && <p><strong>Difficulty:</strong> {difficulty}</p>}
+                    </div>
+                    {/* --- 2. This is the updated skills section --- */}
+                    {skills_tested && skills_tested.length > 0 && (
+                        <div>
+                            <strong className="font-semibold block mb-2">Skills Tested:</strong>
+                            <div className="flex flex-wrap gap-1">
+                                {skills_tested.map((skill, i) => (
+                                    <Badge key={i} variant="secondary">
+                                        {skill}
+                                    </Badge>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </TooltipContent>
+        )}
     </TooltipNode>
   );
 }
